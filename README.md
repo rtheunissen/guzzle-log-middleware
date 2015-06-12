@@ -1,4 +1,4 @@
-# Guzzle logging middleware
+# Guzzle middleware to log messages
 
 [![Build Status](https://img.shields.io/travis/rtheunissen/guzzle-log-middleware.svg?style=flat-square&branch=master)](https://travis-ci.org/rtheunissen/guzzle-log-middleware)
 [![Scrutinizer](https://img.shields.io/scrutinizer/g/rtheunissen/guzzle-log-middleware.svg?style=flat-square)](https://scrutinizer-ci.com/g/rtheunissen/guzzle-log-middleware/)
