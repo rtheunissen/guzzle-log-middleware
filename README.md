@@ -16,5 +16,5 @@ composer require rtheunissen/guzzle-log-middleware
 Requires an instance of `Psr\Log\LoggerInterface` and an optional `GuzzleHttp\MessageFormatter`.
 
 ```php
-$handlerStack->push(new Logger($logger, $formatter));
+$handlerStack->push(new \Concat\Http\Middleware\Logger($logger, $formatter));
 ```
