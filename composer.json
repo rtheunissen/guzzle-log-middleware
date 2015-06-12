@@ -22,5 +22,8 @@
             "Concat\\Http\\Middleware\\": "src/",
             "Concat\\Http\\Middleware\\Test\\": "tests/"
         }
+    },
+    "suggest": {
+        "monolog/monolog": "Recommended PSR-3 logger"
     }
 }
