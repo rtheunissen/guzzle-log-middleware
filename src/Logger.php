@@ -6,7 +6,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use GuzzleHttp\MessageFormatter as Formatter;
+use GuzzleHttp\MessageFormatter;
 
 /**
  * Guzzle middleware which logs a request and response cycle.
@@ -14,9 +14,14 @@ use GuzzleHttp\MessageFormatter as Formatter;
 class Logger
 {
     /**
-     * @var Psr\Log\LoggerInterface
+     * @var \Psr\Log\LoggerInterface
      */
-    private $logger;
+    protected $logger;
+
+    /**
+     * @var \GuzzleHttp\MessageFormatter
+     */
+    protected $formatter;
 
     /**
      * Creates a callable middleware for logging requests and responses.
@@ -26,7 +31,7 @@ class Logger
      */
     public function __construct(
         LoggerInterface $logger,
-        Formatter $formatter = null
+        MessageFormatter $formatter = null
     ) {
         $this->logger    = $logger;
         $this->formatter = $formatter ?: new MessageFormatter();
