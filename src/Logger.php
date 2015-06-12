@@ -44,8 +44,10 @@ class Logger
     {
         return function (ResponseInterface $response) use ($request) {
 
-            $code    = intval(substr($response->getStatusCode(), 0, 1));
-            $level   = $this->getLogLevel($code);
+            // We need the status code to determine the log level
+            $code    = $response->getStatusCode();
+
+            $level   = $this->getLogLevel(substr($code, 0, 1));
             $text    = $this->formatter->format($request, $response);
             $context = compact('request', 'response');
 
@@ -63,7 +65,7 @@ class Logger
      */
     protected function getLogLevel($statusCode)
     {
-        switch ($statusCode) {
+        switch (intval($statusCode)) {
             case '1':
             case '2':
                 return LogLevel::INFO;
