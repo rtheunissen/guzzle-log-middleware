@@ -19,15 +19,10 @@ class Logger
     protected $logger;
 
     /**
-     * @var \GuzzleHttp\MessageFormatter
-     */
-    protected $formatter;
-
-    /**
      * Creates a callable middleware for logging requests and responses.
      *
      * @param $logger LoggerInterface
-     * @param $formatter MessageFormatter|null
+     * @param $formatter MessageFormatter
      */
     public function __construct(
         LoggerInterface $logger,
@@ -40,20 +35,34 @@ class Logger
     /**
      * @param RequestInterface $request
      */
-    private function log(RequestInterface $request)
+    protected function log(RequestInterface $request)
     {
         return function (ResponseInterface $response) use ($request) {
 
-            // We need the status code to determine the log level
             $code    = $response->getStatusCode();
-
-            $level   = $this->getLogLevel(substr($code, 0, 1));
-            $text    = $this->formatter->format($request, $response);
+            $level   = $this->getLogLevel($code);
+            $text    = $this->getLogMessage($request, $response);
             $context = compact('request', 'response');
 
             $this->logger->log($level, $text, $context);
+
             return $response;
         };
+    }
+
+    /**
+     * Formats a request and response as a log message.
+     *
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
+     *
+     * @return string The formatted message
+     */
+    protected function getLogMessage(
+        RequestInterface $request,
+        ResponseInterface $response
+    ) {
+        return $this->formatter->format($request, $response);
     }
 
     /**
@@ -65,7 +74,7 @@ class Logger
      */
     protected function getLogLevel($statusCode)
     {
-        switch (intval($statusCode)) {
+        switch (intval(substr($statusCode, 0, 1))) {
             case '1':
             case '2':
                 return LogLevel::INFO;
