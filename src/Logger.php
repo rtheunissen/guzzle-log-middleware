@@ -19,6 +19,11 @@ class Logger
     protected $logger;
 
     /**
+     * @var \GuzzleHttp\MessageFormatter
+     */
+    protected $formatter;
+
+    /**
      * Creates a callable middleware for logging requests and responses.
      *
      * @param $logger LoggerInterface
