@@ -41,10 +41,10 @@ class Logger
 
             $code    = $response->getStatusCode();
             $level   = $this->getLogLevel($code);
-            $text    = $this->getLogMessage($request, $response);
+            $message = $this->getLogMessage($request, $response);
             $context = compact('request', 'response');
 
-            $this->logger->log($level, $text, $context);
+            $this->logger->log($level, $message, $context);
 
             return $response;
         };
