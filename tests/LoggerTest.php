@@ -7,9 +7,7 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Handler\MockHandler;
-use GuzzleHttp\Client;
+use GuzzleHttp\Promise\PromiseInterface;
 use GuzzleHttp\MessageFormatter;
 
 use Concat\Http\Middleware\Logger;
@@ -18,40 +16,45 @@ use \Mockery as m;
 
 class LoggerTest extends \PHPUnit_Framework_TestCase
 {
-    private function createClient($logger, array $responses)
-    {
-        $stack = new HandlerStack();
-        $stack->setHandler(new MockHandler($responses));
-        $stack->push($logger);
-        return new Client(['handler' => $stack]);
-    }
-
     /**
-     * @dataProvider getCodeLevels
+     * @dataProvider providerTestLogger
      */
-    public function testCodeLevels($code, $level)
+    public function testLogger($code, $level)
     {
-        $response = m::mock(ResponseInterface::class);
-        $response->shouldReceive('getStatusCode')->andReturn($code);
-        $response->shouldReceive('getHeaderLine');
-
         $formatter = m::mock(MessageFormatter::class);
 
-        $formatter->shouldReceive('format')->with(
+        $formatter->shouldReceive('format')->once()->with(
             m::type(RequestInterface::class),
             m::type(ResponseInterface::class)
         )->andReturn("ok");
 
         $logger = m::mock(LoggerInterface::class);
-        $logger->shouldReceive('log')->with($level, "ok", m::type('array'));
+        $logger->shouldReceive('log')->once()->with($level, "ok", m::type('array'));
 
         $middleware = new Logger($logger, $formatter);
 
-        $client = $this->createClient($middleware, [$response]);
-        $client->request('GET', 'http://test.com');
+        $promise = m::mock(PromiseInterface::class);
+        $promise->shouldReceive('then')->once()->andReturnUsing(function ($a) {
+            return $a;
+        });
+
+        $handler = function ($request, $options) use ($promise) {
+            return $promise;
+        };
+
+        $request = m::mock(RequestInterface::class);
+        $request->shouldReceive('getMethod')->once()->andReturn('GET');
+        $request->shouldReceive('getUri')->once()->andReturn('/');
+
+        $callback = $middleware->__invoke($handler);
+        $result = $callback->__invoke($request, []);
+
+        $response = m::mock(ResponseInterface::class);
+        $response->shouldReceive('getStatusCode')->andReturn($code);
+        $result->__invoke($response);
     }
 
-    public function getCodeLevels()
+    public function providerTestLogger()
     {
         return [
             ['100', LogLevel::INFO],

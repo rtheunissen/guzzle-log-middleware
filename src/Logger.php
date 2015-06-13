@@ -34,15 +34,15 @@ class Logger
 
     /**
      * @param RequestInterface $request
+     * @param array $options
      */
-    protected function log(RequestInterface $request)
+    protected function log(RequestInterface $request, array $options)
     {
-        return function (ResponseInterface $response) use ($request) {
+        return function (ResponseInterface $response) use ($request, $options) {
 
-            $code    = $response->getStatusCode();
-            $level   = $this->getLogLevel($code);
-            $message = $this->getLogMessage($request, $response);
-            $context = compact('request', 'response');
+            $level   = $this->getLogLevel($request, $response, $options);
+            $message = $this->getLogMessage($request, $response, $options);
+            $context = compact('request', 'response', 'options');
 
             $this->logger->log($level, $message, $context);
 
@@ -60,21 +60,26 @@ class Logger
      */
     protected function getLogMessage(
         RequestInterface $request,
-        ResponseInterface $response
+        ResponseInterface $response,
+        array $options
     ) {
         return $this->formatter->format($request, $response);
     }
 
     /**
-     * Returns the log level for a response status code.
+     * Returns the log level for a given request and response.
      *
-     * @param integer $statusCode Status code of the response.
+     * @param RequestInterface $request
+     * @param ResponseInterface $response
      *
      * @return string|null Log level constant or null if undetermined.
      */
-    protected function getLogLevel($statusCode)
-    {
-        switch (intval(substr($statusCode, 0, 1))) {
+    protected function getLogLevel(
+        RequestInterface $request,
+        ResponseInterface $response,
+        array $options
+    ) {
+        switch (substr($response->getStatusCode(), 0, 1)) {
             case '1':
             case '2':
                 return LogLevel::INFO;
@@ -93,7 +98,9 @@ class Logger
     public function __invoke(callable $handler)
     {
         return function (RequestInterface $request, $options) use ($handler) {
-            return $handler($request, $options)->then($this->log($request));
+            return $handler($request, $options)->then(
+                $this->log($request, $options)
+            );
         };
     }
 }
