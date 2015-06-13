@@ -55,7 +55,7 @@ class MultiLogger extends Logger
     /**
      * Returns the log level for a given request.
      *
-     * @param RequestInterface $response The request being logged.
+     * @param RequestInterface $request The request being logged.
      * @param array $options Request options
      *
      * @return string LogLevel
@@ -87,7 +87,7 @@ class MultiLogger extends Logger
     /**
      * Returns the log message for a given request.
      *
-     * @param RequestInterface $response The request being logged.
+     * @param RequestInterface $request The request being logged.
      * @param array $options Request options
      *
      * @return string The formatted log message
