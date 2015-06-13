@@ -13,8 +13,14 @@ composer require rtheunissen/guzzle-log-middleware
 ```
 
 ## Usage
-Requires an instance of `Psr\Log\LoggerInterface` and an optional `GuzzleHttp\MessageFormatter`.
+Requires an instance of `Psr\Log\LoggerInterface` and an optional `GuzzleHttp\MessageFormatter`. `MultiLogger` logs the request when it is sent,
+and the response when it is received. `Logger` logs both when the response is 
+received.
 
 ```php
 $handlerStack->push(new \Concat\Http\Middleware\Logger($logger, $formatter));
+
+// or
+
+$handlerStack->push(new \Concat\Http\Middleware\MultiLogger($logger, $formatter));
 ```
