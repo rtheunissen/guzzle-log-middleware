@@ -14,105 +14,40 @@ use GuzzleHttp\MessageFormatter;
 class MultiLogger extends Logger
 {
     /**
-     * Logs a request when it is sent and a response when it is received.
+     * Hook into the request to log it immediately.
      *
-     * @param RequestInterface $request
-     * @param array $options
+     * @param RequestInterface $request The request being made.
      */
-    protected function log(RequestInterface $request, array $options)
+    protected function requestHook(RequestInterface $request)
     {
-        $level   = $this->getRequestLogLevel($request, $options);
-        $message = $this->getRequestMessage($request, $options);
-        $context = compact('request', 'options');
+        $level   = $this->getRequestLogLevel($request);
+        $message = $this->getRequestMessage($request);
+        $context = compact('request');
 
         $this->logger->log($level, $message, $context);
-
-        return parent::log($request, $options);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    final protected function getLogMessage(
-        RequestInterface $request,
-        ResponseInterface $response,
-        array $options
-    ) {
-        return $this->getResponseMessage($request, $response, $options);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    final protected function getLogLevel(
-        RequestInterface $request,
-        ResponseInterface $response,
-        array $options
-    ) {
-        return $this->getResponseLogLevel($request, $response, $options);
-    }
-
-    /**
-     * Returns the log level for a given request.
-     *
-     * @param RequestInterface $request The request being logged.
-     * @param array $options Request options
-     *
-     * @return string LogLevel
-     */
-    protected function getRequestLogLevel(
-        RequestInterface $request,
-        array $options
-    ) {
-        return LogLevel::DEBUG;
-    }
-
-    /**
-     * Returns a log level for a given response.
-     *
-     * @param RequestInterface $response The request being logged.
-     * @param ResponseInterface $response The response being logged.
-     * @param array $options Request options
-     *
-     * @return string LogLevel
-     */
-    protected function getResponseLogLevel(
-        RequestInterface $request,
-        ResponseInterface $response,
-        array $options
-    ) {
-        return parent::getLogLevel($request, $response, $options);
     }
 
     /**
      * Returns the log message for a given request.
      *
      * @param RequestInterface $request The request being logged.
-     * @param array $options Request options
      *
      * @return string The formatted log message
      */
-    protected function getRequestMessage(
-        RequestInterface $request,
-        array $options
-    ) {
+    protected function getRequestMessage(RequestInterface $request)
+    {
         return $this->formatter->format($request);
     }
 
     /**
-     * Returns the log message for a given response.
+     * Returns the log level for a given request.
      *
-     * @param RequestInterface $response The request being logged.
-     * @param ResponseInterface $response The response being logged.
-     * @param array $options Request options
+     * @param RequestInterface $request The request being logged.
      *
-     * @return string The formatted log message
+     * @return string LogLevel
      */
-    protected function getResponseMessage(
-        RequestInterface $request,
-        ResponseInterface $response,
-        array $options
-    ) {
-        return $this->formatter->format($request, $response);
+    protected function getRequestLogLevel(RequestInterface $request)
+    {
+        return LogLevel::DEBUG;
     }
 }

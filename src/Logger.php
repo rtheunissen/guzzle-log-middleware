@@ -6,10 +6,12 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\MessageFormatter;
+use GuzzleHttp\Promise;
 
 /**
- * Guzzle middleware which logs a request and response cycle.
+ * Guzzle middleware which logs a request and its response.
  */
 class Logger
 {
@@ -38,63 +40,158 @@ class Logger
     }
 
     /**
+     * Logs a request and its response.
+     *
      * @param RequestInterface $request
-     * @param array $options
+     * @param ResponseInterface $response
      */
-    protected function log(RequestInterface $request, array $options)
+    protected function log(
+        RequestInterface $request,
+        ResponseInterface $response
+    ) {
+        $level   = $this->getLogLevel($response);
+        $message = $this->getLogMessage($request, $response);
+        $context = compact('request', 'response');
+
+        $this->logger->log($level, $message, $context);
+    }
+
+    /**
+     * Logs a failed request and its response if it has one.
+     *
+     * @param RequestInterface $request
+     * @param mixed $reason
+     */
+    protected function logError(RequestInterface $request, $reason)
     {
-        return function (ResponseInterface $response) use ($request, $options) {
+        $response = $this->getReasonResponse($reason);
+        $level    = $this->getErrorLogLevel($response);
+        $message  = $this->getErrorLogMessage($request, $response, $reason);
+        $context  = compact('request', 'response', 'reason');
 
-            $level   = $this->getLogLevel($request, $response, $options);
-            $message = $this->getLogMessage($request, $response, $options);
-            $context = compact('request', 'response', 'options');
+        $this->logger->log($level, $message, $context);
+    }
 
-            $this->logger->log($level, $message, $context);
+    /**
+     * Returns a reason's response or null if it can't be determined.
+     *
+     * @param mixed $reason
+     *
+     * @return ResponseInterface|null
+     */
+    protected function getReasonResponse($reason)
+    {
+        if ($reason instanceof RequestException) {
+            return $reason->getResponse();
+        }
+    }
 
-            return $response;
-        };
+    /**
+     * Formats a request and response as an error log message.
+     *
+     * @param RequestInterface $request
+     * @param ResponseInterface|null $response
+     * @param mixed|null $reason
+     *
+     * @return string The formatted erro message.
+     */
+    protected function getErrorLogMessage(
+        RequestInterface $request,
+        ResponseInterface $response = null,
+        $reason = null
+    ) {
+        return $this->formatter->format($request, $response, $reason);
     }
 
     /**
      * Formats a request and response as a log message.
      *
      * @param RequestInterface $request
-     * @param ResponseInterface $response
+     * @param ResponseInterface|null $response
      *
-     * @return string The formatted message
+     * @return string The formatted message.
      */
     protected function getLogMessage(
         RequestInterface $request,
-        ResponseInterface $response,
-        array $options
+        ResponseInterface $response = null
     ) {
         return $this->formatter->format($request, $response);
     }
 
     /**
-     * Returns the log level for a given request and response.
+     * Returns a log level for a given response.
+     *
+     * @param ResponseInterface $response The response being logged.
+     *
+     * @return string LogLevel
+     */
+    protected function getLogLevel(ResponseInterface $response)
+    {
+        switch (substr($response->getStatusCode(), 0, 1)) {
+            case '4':
+            case '5':
+                return $this->getErrorLogLevel();
+            default:
+                return LogLevel::DEBUG;
+        }
+    }
+
+    /**
+     * Returns a erro log level for a given response.
+     *
+     * @param ResponseInterface $response The response being logged.
+     *
+     * @return string LogLevel
+     */
+    protected function getErrorLogLevel(ResponseInterface $response = null)
+    {
+        if ($response) {
+            return $this->getLogLevel($response);
+        }
+
+        return LogLevel::NOTICE;
+    }
+
+    /**
+     * A convenient hook which gives access to a request before a response is
+     * received. This is useful for when an extending logger might like to log
+     * a request immediately (rather than wait for its response).
+     *
+     * @param RequestInterface $request The request being made.
+     */
+    protected function requestHook(RequestInterface $request)
+    {
+        // Don't log requests by default.
+    }
+
+    /**
+     * Returns a function which is handled when a request was successful.
      *
      * @param RequestInterface $request
-     * @param ResponseInterface $response
      *
-     * @return string|null Log level constant or null if undetermined.
+     * @return Closure
      */
-    protected function getLogLevel(
-        RequestInterface $request,
-        ResponseInterface $response,
-        array $options
-    ) {
-        switch (substr($response->getStatusCode(), 0, 1)) {
-            case '1':
-            case '2':
-                return LogLevel::INFO;
-            case '3':
-                return LogLevel::NOTICE;
-            case '4':
-                return LogLevel::ERROR;
-            case '5':
-                return LogLevel::CRITICAL;
-        }
+    protected function onSuccess(RequestInterface $request)
+    {
+        return function ($response) use ($request) {
+            $this->log($request, $response);
+            return $response;
+        };
+    }
+
+    /**
+     * Returns a function which is handled when a request was not successful.
+     *
+     * @param RequestInterface $request
+     *
+     * @return Closure
+     */
+    protected function onFailure(RequestInterface $request)
+    {
+        return function ($reason) use ($request) {
+            $this->logError($request, $reason);
+            return Promise\rejection_for($reason);
+        };
     }
 
     /**
@@ -102,9 +199,14 @@ class Logger
      */
     public function __invoke(callable $handler)
     {
-        return function (RequestInterface $request, $options) use ($handler) {
+        return function ($request, array $options) use ($handler) {
+
+            // Hook in here to log requests immediately
+            $this->requestHook($request, $options);
+
             return $handler($request, $options)->then(
-                $this->log($request, $options)
+                $this->onSuccess($request),
+                $this->onFailure($request)
             );
         };
     }

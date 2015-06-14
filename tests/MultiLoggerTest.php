@@ -30,8 +30,7 @@ class MultiLoggerTest extends \PHPUnit_Framework_TestCase
         $formatter->shouldReceive('format')->times(2)->andReturn("ok");
 
         $logger = m::mock(LoggerInterface::class);
-        $logger->shouldReceive('log')->once()->with(LogLevel::DEBUG, "ok", m::type('array'));
-        $logger->shouldReceive('log')->once()->with(LogLevel::INFO, "ok", m::type('array'));
+        $logger->shouldReceive('log')->times(2)->with(LogLevel::DEBUG, "ok", m::type('array'));
 
         $middleware = new MultiLogger($logger, $formatter);
 
