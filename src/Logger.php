@@ -201,8 +201,7 @@ class Logger
     {
         return function ($request, array $options) use ($handler) {
 
-            // Hook in here to log requests immediately
-            $this->requestHook($request, $options);
+            $this->requestHook($request);
 
             return $handler($request, $options)->then(
                 $this->onSuccess($request),
