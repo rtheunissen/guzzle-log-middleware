@@ -16,6 +16,11 @@ use \Mockery as m;
 
 class LoggerTest extends \PHPUnit_Framework_TestCase
 {
+    public function tearDown()
+    {
+        m::close();
+    }
+
     /**
      * @dataProvider providerTestLogger
      */
@@ -43,8 +48,6 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
         };
 
         $request = m::mock(RequestInterface::class);
-        $request->shouldReceive('getMethod')->once()->andReturn('GET');
-        $request->shouldReceive('getUri')->once()->andReturn('/');
 
         $callback = $middleware->__invoke($handler);
         $result = $callback->__invoke($request, []);

@@ -18,6 +18,11 @@ use \Mockery as m;
 
 class MultiLoggerTest extends \PHPUnit_Framework_TestCase
 {
+    public function tearDown()
+    {
+        m::close();
+    }
+
     public function testLogger()
     {
         $formatter = m::mock(MessageFormatter::class);
