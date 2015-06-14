@@ -95,8 +95,7 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
             $response = m::mock(ResponseInterface::class);
             $response->shouldReceive('getStatusCode')->andReturn(500);
 
-            $exception = m::mock(RequestException::class);
-            $exception->shouldReceive('getResponse')->andReturn($response);
+            $exception = new RequestException("", $request, $response);
 
             $b($exception);
         });
