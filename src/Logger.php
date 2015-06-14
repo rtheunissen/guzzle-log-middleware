@@ -28,8 +28,8 @@ class Logger
     /**
      * Creates a callable middleware for logging requests and responses.
      *
-     * @param $logger LoggerInterface
-     * @param $formatter MessageFormatter
+     * @param LoggerInterface $logger
+     * @param MessageFormatter $formatter
      */
     public function __construct(
         LoggerInterface $logger,
@@ -196,6 +196,10 @@ class Logger
 
     /**
      * Called when the middleware is handled by the client.
+     *
+     * @param callable $handler
+     *
+     * @return Closure
      */
     public function __invoke(callable $handler)
     {
