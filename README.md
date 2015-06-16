@@ -82,4 +82,3 @@ where only the request exists.
 #### Middleware
 
 This package is designed to function as [Guzzle 6 Middleware](http://guzzle.readthedocs.org/en/latest/handlers-and-middleware.html#middleware).
-```
