@@ -15,6 +15,10 @@ composer require rtheunissen/guzzle-log-middleware
 
 ## Usage
 
+```
+use Concat\Http\Middleware\Logger;
+```
+
 ### Logger
 You can use either a [PSR-3](http://www.php-fig.org/psr/psr-3/) logger
 (such as [Monolog](https://github.com/Seldaek/monolog))
