@@ -2,17 +2,15 @@
 
 namespace Concat\Http\Middleware\Test;
 
-use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\RequestInterface;
-use Psr\Log\LoggerInterface;
-use Psr\Log\LogLevel;
-
-use GuzzleHttp\Promise\RejectedPromise;
-use GuzzleHttp\Promise\PromiseInterface;
-use GuzzleHttp\MessageFormatter;
-use GuzzleHttp\Exception\RequestException;
-
 use Concat\Http\Middleware\Logger;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\Promise\RejectedPromise;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LogLevel;
+use Psr\Log\LoggerInterface;
 
 use \Mockery as m;
 
@@ -23,119 +21,231 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
         m::close();
     }
 
-    /**
-     * @dataProvider providerTestLogger
-     */
-    public function testLogger($code, $level)
+    private function createClient($middleware, array $responses = [])
     {
-        $formatter = m::mock(MessageFormatter::class);
+        $handler = new MockHandler($responses);
+        $stack = HandlerStack::create();
 
-        $formatter->shouldReceive('format')->once()->with(
-            m::type(RequestInterface::class),
-            m::type(ResponseInterface::class)
-        )->andReturn("ok");
+        if (is_array($middleware)) {
+            foreach ($middleware as $m) {
+                $stack->push($m);
+            }
+        } else {
+            $stack->push($middleware);
+        }
 
-        $logger = m::mock(LoggerInterface::class);
-        $logger->shouldReceive('log')->once()->with($level, "ok", m::type('array'));
-
-        $middleware = new Logger($logger, $formatter);
-
-        $promise = m::mock(PromiseInterface::class);
-        $promise->shouldReceive('then')->once()->andReturnUsing(function ($a) {
-            return $a;
-        });
-
-        $handler = function ($request, $options) use ($promise) {
-            return $promise;
-        };
-
-        $request = m::mock(RequestInterface::class);
-
-        $callback = $middleware->__invoke($handler);
-        $result = $callback->__invoke($request, []);
-
-        $response = m::mock(ResponseInterface::class);
-        $response->shouldReceive('getStatusCode')->andReturn($code);
-        $result->__invoke($response);
+        $stack->setHandler($handler);
+        return new Client(['handler' => $stack]);
     }
 
-    public function providerTestLogger()
+    private function createMockResponse($code)
+    {
+        $response = m::mock(ResponseInterface::class);
+        $response->shouldReceive('getStatusCode')->andReturn($code);
+        return $response;
+    }
+
+    private function logBehaviour($logger, $count, $level, $code, $message = "")
+    {
+        $logger->shouldReceive('log')->times($count)->with(
+            $level,
+            $message ?: "~^.+ ua - \[.+\] \"GET / HTTP/1\.1\" $code .+$~",
+            m::type('array')
+        );
+    }
+
+    /**
+     * @expectedException InvalidArgumentException
+     */
+    public function testInvalidFormatter()
+    {
+        $logger = new Logger(m::mock(LoggerInterface::class));
+        $logger->setFormatter(false);
+    }
+
+    /**
+     * @expectedException InvalidArgumentException
+     */
+    public function testInvalidLogger()
+    {
+        $logger = new Logger(false);
+    }
+
+    public function testLogDefaults()
+    {
+        $logger = m::mock(LoggerInterface::class);
+        $this->logBehaviour($logger, 1, LogLevel::INFO, 200);
+
+        $middleware = new Logger($logger);
+        $response = $this->createMockResponse(200);
+        $response->shouldReceive('getHeaderLine')->andReturn("length");
+
+        $client = $this->createClient($middleware, [$response]);
+        $client->get("/", [
+            'headers' => [
+                'user-agent' => 'ua',
+            ]
+        ]);
+    }
+
+    public function testRequestLogging()
+    {
+        $logger = m::mock(LoggerInterface::class);
+        $this->logBehaviour($logger, 1, LogLevel::INFO, "NULL");
+        $this->logBehaviour($logger, 1, LogLevel::INFO, 200);
+
+        $middleware = new Logger($logger);
+        $middleware->setRequestLoggingEnabled(true);
+
+        $response = $this->createMockResponse(200);
+        $response->shouldReceive('getHeaderLine')->andReturn("length");
+
+        $client = $this->createClient($middleware, [$response]);
+        $client->get("/", [
+            'headers' => [
+                'user-agent' => 'ua',
+            ]
+        ]);
+    }
+
+    public function testClosureFormatter()
+    {
+        $logger = m::mock(LoggerInterface::class);
+        $this->logBehaviour($logger, 1, LogLevel::INFO, 200, "custom");
+
+        $middleware = new Logger($logger, function () {
+            return "custom";
+        });
+
+        $response = $this->createMockResponse(200);
+        $response->shouldReceive('getHeaderLine')->andReturn("length");
+
+        $client = $this->createClient($middleware, [$response]);
+        $client->get("/", [
+            'headers' => [
+                'user-agent' => 'ua',
+            ]
+        ]);
+    }
+
+    public function testClosureLogger()
+    {
+        $middleware = new Logger(function ($level, $message, $context) {
+            $this->assertEquals($level, LogLevel::INFO);
+            $this->assertInternalType('string', $message);
+            $this->assertInternalType('array', $context);
+        });
+
+        $response = $this->createMockResponse(200);
+        $response->shouldReceive('getHeaderLine')->andReturn("length");
+
+        $client = $this->createClient($middleware, [$response]);
+        $client->get("/", [
+            'headers' => [
+                'user-agent' => 'ua',
+            ]
+        ]);
+    }
+
+    public function logLevelProvider()
     {
         return [
-            ['xxx', LogLevel::DEBUG],
-            ['100', LogLevel::DEBUG],
-            ['200', LogLevel::DEBUG],
-            ['300', LogLevel::DEBUG],
-            ['400', LogLevel::NOTICE],
-            ['500', LogLevel::NOTICE],
+
+            // Test explicit level
+            [200, "level", "level"],
+
+            // Test callback level
+            [200, function () { return "level"; }, "level"],
+
+            // Test default level
+            [200, null, LogLevel::INFO],
+
+            // Test default error level
+            [400, null, LogLevel::NOTICE]
         ];
     }
 
-    public function testErrorLogWithException()
+    /**
+     * @dataProvider logLevelProvider
+     */
+    public function testLogLevel($code, $level, $expected)
     {
-        $formatter = m::mock(MessageFormatter::class);
-
-        $formatter->shouldReceive('format')->once()->with(
-            m::type(RequestInterface::class),
-            m::type(ResponseInterface::class),
-            m::type(RequestException::class)
-        )->andReturn("ok");
-
         $logger = m::mock(LoggerInterface::class);
+        $this->logBehaviour($logger, 1, $expected, $code);
 
-        $logger->shouldReceive('log')->once()->with(LogLevel::NOTICE, "ok", m::type('array'));
+        $middleware = new Logger($logger);
 
-        $middleware = new Logger($logger, $formatter);
+        //
+        if ($level) {
+            $middleware->setLogLevel($level);
+        }
 
-        $request = m::mock(RequestInterface::class);
+        $response = $this->createMockResponse($code);
+        $response->shouldReceive('getHeaderLine')->andReturn("length");
 
-        $promise = m::mock(PromiseInterface::class);
-        $promise->shouldReceive('then')->once()->andReturnUsing(function ($a, $b) use ($request) {
-
-            $response = m::mock(ResponseInterface::class);
-            $response->shouldReceive('getStatusCode')->andReturn(500);
-
-            $exception = new RequestException("", $request, $response);
-
-            $b($exception);
-        });
-
-        $handler = function ($request, $options) use ($promise) {
-            return $promise;
-        };
-
-        $callback = $middleware->__invoke($handler);
-        $result = $callback->__invoke($request, []);
+        $client = $this->createClient($middleware, [$response]);
+        $client->get("/", [
+            'headers'     => [ 'user-agent' => 'ua'],
+            'http_errors' => false,
+        ]);
     }
 
-    public function testErrorLogWithNull()
+    /**
+     * @expectedException GuzzleHttp\Exception\RequestException
+     */
+    public function testFailureLog()
     {
-        $formatter = m::mock(MessageFormatter::class);
-
-        $formatter->shouldReceive('format')->once()->with(
-            m::type(RequestInterface::class),
-            null,
-            null
-        )->andReturn("ok");
-
         $logger = m::mock(LoggerInterface::class);
+        $this->logBehaviour($logger, 1, LogLevel::INFO, "NULL");
 
-        $logger->shouldReceive('log')->once()->with(LogLevel::NOTICE, "ok", m::type('array'));
+        $middleware = new Logger($logger);
 
-        $middleware = new Logger($logger, $formatter);
+        $response = $this->createMockResponse(400);
 
-        $request = m::mock(RequestInterface::class);
-
-        $promise = m::mock(PromiseInterface::class);
-        $promise->shouldReceive('then')->once()->andReturnUsing(function ($a, $b) use ($request) {
-            $b(null);
-        });
-
-        $handler = function ($request, $options) use ($promise) {
-            return $promise;
+        $rejection = function($handler) {
+            return function ($request, $options) {
+                $exception = new RequestException("", $request);
+                return new RejectedPromise($exception);
+            };
         };
 
-        $callback = $middleware->__invoke($handler);
-        $result = $callback->__invoke($request, []);
+        // Push a rejection middleware to test onRejected
+        $middleware = [
+            $middleware,
+            $rejection
+        ];
+
+        $client = $this->createClient($middleware, [$response]);
+        $client->get("/", ['headers' => [ 'user-agent' => 'ua']]);
+    }
+
+    /**
+     * @expectedException GuzzleHttp\Exception\RequestException
+     */
+    public function testFailureDoesNotLogTwice()
+    {
+        $logger = m::mock(LoggerInterface::class);
+        $this->logBehaviour($logger, 1, LogLevel::INFO, "NULL");
+
+        $middleware = new Logger($logger);
+        $middleware->setRequestLoggingEnabled(true);
+
+        $response = $this->createMockResponse(400);
+
+        $rejection = function($handler) {
+            return function ($request, $options) {
+                $exception = new RequestException("", $request);
+                return new RejectedPromise($exception);
+            };
+        };
+
+        // Push a rejection middleware to test onRejected
+        $middleware = [
+            $middleware,
+            $rejection
+        ];
+
+        $client = $this->createClient($middleware, [$response]);
+        $client->get("/", ['headers' => [ 'user-agent' => 'ua']]);
     }
 }

@@ -1,6 +1,7 @@
 {
     "name": "rtheunissen/guzzle-log-middleware",
     "description": "Guzzle middleware to log requests and responses",
+    "keywords": ["guzzle", "http", "middleware", "log", "psr7"],
     "license": "MIT",
     "authors": [
         {

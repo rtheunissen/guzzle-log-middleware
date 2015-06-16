@@ -2,13 +2,15 @@
 
 namespace Concat\Http\Middleware;
 
-use Psr\Log\LoggerInterface;
-use Psr\Log\LogLevel;
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\MessageFormatter;
 use GuzzleHttp\Promise;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Log\LogLevel;
+use Psr\Log\LoggerInterface;
+
+use InvalidArgumentException;
 
 /**
  * Guzzle middleware which logs a request and its response.
@@ -16,91 +18,123 @@ use GuzzleHttp\Promise;
 class Logger
 {
     /**
-     * @var \Psr\Log\LoggerInterface
+     * @var \Psr\Log\LoggerInterface|callable
      */
     protected $logger;
 
     /**
-     * @var \GuzzleHttp\MessageFormatter
+     * @var \GuzzleHttp\MessageFormatter|callable
      */
     protected $formatter;
 
     /**
+     * @var string|callable Constant or callable that accepts a Response.
+     */
+    protected $logLevel;
+
+    /**
+     * @var boolean Whether or not to log requests as they are made.
+     */
+    protected $logRequests;
+
+    /**
      * Creates a callable middleware for logging requests and responses.
      *
-     * @param LoggerInterface $logger
-     * @param MessageFormatter $formatter
+     * @param LoggerInterface|callable $logger
+     * @param string|callable Constant or callable that accepts a Response.
      */
-    public function __construct(
-        LoggerInterface $logger,
-        MessageFormatter $formatter = null
-    ) {
-        $this->logger    = $logger;
-        $this->formatter = $formatter ?: new MessageFormatter();
-    }
-
-    /**
-     * Logs a request and its response.
-     *
-     * @param RequestInterface $request
-     * @param ResponseInterface $response
-     */
-    protected function log(
-        RequestInterface $request,
-        ResponseInterface $response
-    ) {
-        $level   = $this->getLogLevel($response);
-        $message = $this->getLogMessage($request, $response);
-        $context = compact('request', 'response');
-
-        $this->logger->log($level, $message, $context);
-    }
-
-    /**
-     * Logs a failed request and its response if it has one.
-     *
-     * @param RequestInterface $request
-     * @param mixed $reason
-     */
-    protected function logError(RequestInterface $request, $reason)
+    public function __construct($logger, $formatter = null)
     {
-        $response = $this->getReasonResponse($reason);
-        $level    = $this->getErrorLogLevel($response);
-        $message  = $this->getErrorLogMessage($request, $response, $reason);
-        $context  = compact('request', 'response', 'reason');
-
-        $this->logger->log($level, $message, $context);
+        // Use the setters to take care of type validation
+        $this->setLogger($logger);
+        $this->setFormatter($formatter ?: new MessageFormatter());
     }
 
     /**
-     * Returns a reason's response or null if it can't be determined.
+     * Sets whether requests should be logged before the response is received.
      *
-     * @param mixed $reason
-     *
-     * @return ResponseInterface|null
+     * @param boolean $logRequests
      */
-    protected function getReasonResponse($reason)
+    public function setRequestLoggingEnabled($logRequests = true)
     {
-        if ($reason instanceof RequestException) {
-            return $reason->getResponse();
+        $this->logRequests = (bool) $logRequests;
+    }
+
+    /**
+     * Sets the logger, which can be a PSR-3 logger or a callable that accepts
+     * a log level, message, and array context.
+     *
+     * @param LoggerInterface|callable $logger
+     *
+     * @throws InvalidArgumentException
+     */
+    public function setLogger($logger)
+    {
+        if ($logger instanceof LoggerInterface || is_callable($logger)) {
+            $this->logger = $logger;
+        } else {
+            throw new InvalidArgumentException(
+                "Logger has to be a Psr\Log\LoggerInterface or callable"
+            );
         }
     }
 
     /**
-     * Formats a request and response as an error log message.
+     * Sets the formatter, which can be a MessageFormatter or callable that
+     * accepts a request, response, and a reason if an error has occurred.
+     *
+     * @param MessageFormatter|callable $formatter
+     *
+     * @throws InvalidArgumentException
+     */
+    public function setFormatter($formatter)
+    {
+        if ($formatter instanceof MessageFormatter || is_callable($formatter)) {
+            $this->formatter = $formatter;
+        } else {
+            throw new InvalidArgumentException(
+                "Formatter has to be a \GuzzleHttp\MessageFormatter or callable"
+            );
+        }
+    }
+
+   /**
+     * Sets the log level to use, which can be either a string or a callable
+     * that accepts a response (which could be null). A log level could also
+     * be null, which indicates that the default log level should be used.
+     *
+     * @param string|callable|null
+     */
+    public function setLogLevel($logLevel)
+    {
+        $this->logLevel = $logLevel;
+    }
+
+    /**
+     * Logs a request and/or a response.
      *
      * @param RequestInterface $request
      * @param ResponseInterface|null $response
-     * @param mixed|null $reason
-     *
-     * @return string The formatted erro message.
+     * @param mixed $reason
      */
-    protected function getErrorLogMessage(
+    protected function log(
         RequestInterface $request,
         ResponseInterface $response = null,
         $reason = null
     ) {
-        return $this->formatter->format($request, $response, $reason);
+        if ($reason instanceof RequestException) {
+            $response = $reason->getResponse();
+        }
+
+        $level   = $this->getLogLevel($response);
+        $message = $this->getLogMessage($request, $response, $reason);
+        $context = compact('request', 'response', 'reason');
+
+        if (is_callable($this->logger)) {
+            return call_user_func($this->logger, $level, $message, $context);
+        }
+
+        return $this->logger->log($level, $message, $context);
     }
 
     /**
@@ -108,14 +142,24 @@ class Logger
      *
      * @param RequestInterface $request
      * @param ResponseInterface|null $response
+     * @param mixed $reason
      *
      * @return string The formatted message.
      */
     protected function getLogMessage(
         RequestInterface $request,
-        ResponseInterface $response = null
+        ResponseInterface $response = null,
+        $reason = null
     ) {
-        return $this->formatter->format($request, $response);
+        if ($this->formatter instanceof MessageFormatter) {
+            return $this->formatter->format(
+                $request,
+                $response,
+                $reason
+            );
+        }
+
+        return call_user_func($this->formatter, $request, $response, $reason);
     }
 
     /**
@@ -125,43 +169,32 @@ class Logger
      *
      * @return string LogLevel
      */
-    protected function getLogLevel(ResponseInterface $response)
+    protected function getLogLevel(ResponseInterface $response = null)
     {
-        switch (substr($response->getStatusCode(), 0, 1)) {
-            case '4':
-            case '5':
-                return $this->getErrorLogLevel();
-            default:
-                return LogLevel::DEBUG;
+        if ( ! $this->logLevel) {
+            return $this->getDefaultLogLevel($response);
         }
+
+        if (is_callable($this->logLevel)) {
+            return call_user_func($this->logLevel, $response);
+        }
+
+        return (string) $this->logLevel;
     }
 
     /**
-     * Returns a erro log level for a given response.
+     * Returns the default log level for a response.
      *
-     * @param ResponseInterface $response The response being logged.
+     * @param ResponseInterface $response
      *
      * @return string LogLevel
      */
-    protected function getErrorLogLevel(ResponseInterface $response = null)
-    {
-        if ($response) {
-            return $this->getLogLevel($response);
+    protected function getDefaultLogLevel(ResponseInterface $response = null) {
+        if ($response && $response->getStatusCode() >= 300) {
+            return LogLevel::NOTICE;
         }
 
-        return LogLevel::NOTICE;
-    }
-
-    /**
-     * A convenient hook which gives access to a request before a response is
-     * received. This is useful for when an extending logger might like to log
-     * a request immediately (rather than wait for its response).
-     *
-     * @param RequestInterface $request The request being made.
-     */
-    protected function requestHook(RequestInterface $request)
-    {
-        // Don't log requests by default.
+        return LogLevel::INFO;
     }
 
     /**
@@ -180,7 +213,7 @@ class Logger
     }
 
     /**
-     * Returns a function which is handled when a request was not successful.
+     * Returns a function which is handled when a request was rejected.
      *
      * @param RequestInterface $request
      *
@@ -189,7 +222,12 @@ class Logger
     protected function onFailure(RequestInterface $request)
     {
         return function ($reason) use ($request) {
-            $this->logError($request, $reason);
+
+            // Only log a rejected requests if it hasn't already been logged
+            if ( ! $this->logRequests) {
+                $this->log($request, null, $reason);
+            }
+
             return Promise\rejection_for($reason);
         };
     }
@@ -205,7 +243,10 @@ class Logger
     {
         return function ($request, array $options) use ($handler) {
 
-            $this->requestHook($request);
+            // Only log requests if explicitly set to do so
+            if ($this->logRequests) {
+                $this->log($request);
+            }
 
             return $handler($request, $options)->then(
                 $this->onSuccess($request),
