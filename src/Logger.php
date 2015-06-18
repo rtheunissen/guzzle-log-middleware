@@ -47,7 +47,17 @@ class Logger
     {
         // Use the setters to take care of type validation
         $this->setLogger($logger);
-        $this->setFormatter($formatter ?: new MessageFormatter());
+        $this->setFormatter($formatter ?: $this->getDefaultFormatter());
+    }
+
+    /**
+     * Returns the default formatter;
+     *
+     * @return MessageFormatter
+     */
+    protected function getDefaultFormatter()
+    {
+        return new MessageFormatter();
     }
 
     /**

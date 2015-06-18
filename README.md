@@ -1,4 +1,4 @@
-# Guzzle middleware to log messages
+# Guzzle 6 middleware to log requests and responses
 
 [![Author](http://img.shields.io/badge/author-@rudi_theunissen-blue.svg?style=flat-square)](https://twitter.com/rudi_theunissen)
 [![License](https://img.shields.io/packagist/l/rtheunissen/guzzle-log-middleware.svg?style=flat-square)](https://packagist.org/packages/rtheunissen/guzzle-log-middleware)
@@ -14,19 +14,71 @@ composer require rtheunissen/guzzle-log-middleware
 ```
 
 ## Usage
-Requires an instance of `Psr\Log\LoggerInterface` and an optional `GuzzleHttp\MessageFormatter`.
 
-`MultiLogger` logs the request when it is sent, and the response when it is received.
-
-`Logger` logs a combined message when the response is received.
+### Logger
+You can use either a [PSR-3](http://www.php-fig.org/psr/psr-3/) logger
+(such as [Monolog](https://github.com/Seldaek/monolog))
+or a callable that accepts a log level, message, and context as an array.
 
 ```php
-use Concat\Http\Middleware\Logger;
-use Concat\Http\Middleware\MultiLogger;
+$middleware = new Logger($logger);
+```
 
-$handlerStack->push(new Logger($logger, $formatter));
+or
 
-// or
+```php
+$middleware = new Logger(function ($level, $message, array $context) {
+    // Log the message
+});
+```
 
-$handlerStack->push(new MultiLogger($logger, $formatter));
+#### Log level
+You can set a log level as a string or a callable that accepts a response. If the
+response is not set, it can be assumed that it's a request-only log, or that the
+request has been rejected. If the log level is not set, the default log level will be
+used which is `LogLevel::NOTICE` for status codes >= 400, or `LogLevel::INFO` otherwise.
+```php
+use Psr\Log\LogLevel;
+
+$middleware->setLogLevel(LogLevel::DEBUG);
+```
+
+or
+
+```php
+$middleware->setLogLevel(function ($response) {
+    // Return log level
+});
+```
+#### Formatter
+You can set a message formatter as a [MessageFormatter](https://github.com/guzzle/guzzle/blob/master/src/MessageFormatter.php) or a callable that accepts
+a request, response, as well as a reason when a request has been rejected.
+
+```php
+$middleware->setFormatter($formatter);
+```
+
+or
+
+```php
+$middleware->setFormatter(function ($request, $response, $reason) {
+    // Return log message
+});
+```
+
+or
+
+```php
+$middleware = new Logger($logger, $formatter);
+```
+
+#### Request logging
+
+A request will only be logged with its response is received. You can enable request logging
+by using `$middleware->setRequestLoggingEnabled(true)`, which will log a request when it is requested,
+as well as its response when it is received.
+
+#### Middleware
+
+This package is designed to function as [Guzzle 6 Middleware](http://guzzle.readthedocs.org/en/latest/handlers-and-middleware.html#middleware).
 ```
