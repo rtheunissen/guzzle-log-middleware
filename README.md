@@ -15,6 +15,10 @@ composer require rtheunissen/guzzle-log-middleware
 
 ## Usage
 
+```
+use Concat\Http\Middleware\Logger;
+```
+
 ### Logger
 You can use either a [PSR-3](http://www.php-fig.org/psr/psr-3/) logger
 (such as [Monolog](https://github.com/Seldaek/monolog))
@@ -74,11 +78,11 @@ $middleware = new Logger($logger, $formatter);
 
 #### Request logging
 
-A request will only be logged with its response is received. You can enable request logging
+A request will only be logged when its response is received. You can enable request logging
 by using `$middleware->setRequestLoggingEnabled(true)`, which will log a request when it is requested,
-as well as its response when it is received.
+as well as its response when it is received. Any `$response` references will be `null` in the case
+where only the request exists.
 
 #### Middleware
 
 This package is designed to function as [Guzzle 6 Middleware](http://guzzle.readthedocs.org/en/latest/handlers-and-middleware.html#middleware).
-```
