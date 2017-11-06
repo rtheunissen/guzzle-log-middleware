@@ -20,7 +20,11 @@
     },
     "autoload": {
         "psr-4": {
-            "Concat\\Http\\Middleware\\": "src/",
+            "Concat\\Http\\Middleware\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
             "Concat\\Http\\Middleware\\Test\\": "tests/"
         }
     },
