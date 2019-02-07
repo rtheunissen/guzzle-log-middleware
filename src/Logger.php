@@ -140,6 +140,11 @@ class Logger
         $message = $this->getLogMessage($request, $response, $reason);
         $context = compact('request', 'response', 'reason');
 
+        // Make sure that the content of the body is available again.
+        if ($response) {
+            $response->getBody()->seek(0);;
+        }
+
         if (is_callable($this->logger)) {
             return call_user_func($this->logger, $level, $message, $context);
         }
@@ -233,7 +238,7 @@ class Logger
     {
         return function ($reason) use ($request) {
 
-            // Only log a rejected requests if it hasn't already been logged
+            // Only log a rejected request if it hasn't already been logged.
             if ( ! $this->logRequests) {
                 $this->log($request, null, $reason);
             }
