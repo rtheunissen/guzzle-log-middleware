@@ -11,6 +11,7 @@ use GuzzleHttp\Promise\RejectedPromise;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\LoggerInterface;
+use GuzzleHttp\Stream\Stream;
 
 use \Mockery as m;
 
@@ -42,6 +43,8 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
     {
         $response = m::mock(ResponseInterface::class);
         $response->shouldReceive('getStatusCode')->andReturn($code);
+        $response->shouldReceive('getBody')->andReturn(Stream::factory('test data'));
+        
         return $response;
     }
 
