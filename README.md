@@ -1,4 +1,4 @@
-# Guzzle 6 middleware to log requests and responses
+# Guzzle 6/7 middleware to log requests and responses
 
 [![Author](http://img.shields.io/badge/author-@rudi_theunissen-blue.svg?style=flat-square)](https://twitter.com/rudi_theunissen)
 [![License](https://img.shields.io/packagist/l/rtheunissen/guzzle-log-middleware.svg?style=flat-square)](https://packagist.org/packages/rtheunissen/guzzle-log-middleware)
@@ -85,4 +85,4 @@ where only the request exists.
 
 #### Middleware
 
-This package is designed to function as [Guzzle 6 Middleware](http://guzzle.readthedocs.org/en/latest/handlers-and-middleware.html#middleware).
+This package is designed to function as [Guzzle 6/7 Middleware](http://guzzle.readthedocs.org/en/latest/handlers-and-middleware.html#middleware).
