@@ -8,17 +8,21 @@ use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Promise\RejectedPromise;
+use InvalidArgumentException;
+use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\LoggerInterface;
-use GuzzleHttp\Stream\Stream;
 
 use \Mockery as m;
 
-class LoggerTest extends \PHPUnit_Framework_TestCase
+class LoggerTest extends TestCase
 {
-    public function tearDown()
+
+    public function tearDown(): void
     {
+        parent::tearDown();
+
         m::close();
     }
 
@@ -43,8 +47,8 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
     {
         $response = m::mock(ResponseInterface::class);
         $response->shouldReceive('getStatusCode')->andReturn($code);
-        $response->shouldReceive('getBody')->andReturn(Stream::factory('test data'));
-        
+        $response->shouldReceive('getBody')->andReturn(\GuzzleHttp\Psr7\Utils::streamFor('test data'));
+
         return $response;
     }
 
@@ -57,20 +61,16 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
         );
     }
 
-    /**
-     * @expectedException InvalidArgumentException
-     */
     public function testInvalidFormatter()
     {
+        $this->expectException(InvalidArgumentException::class);
         $logger = new Logger(m::mock(LoggerInterface::class));
         $logger->setFormatter(false);
     }
 
-    /**
-     * @expectedException InvalidArgumentException
-     */
     public function testInvalidLogger()
     {
+        $this->expectException(InvalidArgumentException::class);
         $logger = new Logger(false);
     }
 
@@ -135,8 +135,8 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
     {
         $middleware = new Logger(function ($level, $message, $context) {
             $this->assertEquals($level, LogLevel::INFO);
-            $this->assertInternalType('string', $message);
-            $this->assertInternalType('array', $context);
+            $this->assertIsString($message);
+            $this->assertIsArray($context);
         });
 
         $response = $this->createMockResponse(200);
