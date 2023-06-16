@@ -11,12 +11,13 @@ use GuzzleHttp\Promise\RejectedPromise;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\LoggerInterface;
-use GuzzleHttp\Stream\Stream;
 
 use \Mockery as m;
 
 class LoggerTest extends \PHPUnit\Framework\TestCase
 {
+    use \Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
+
     public function tearDown(): void
     {
         m::close();
@@ -42,8 +43,8 @@ class LoggerTest extends \PHPUnit\Framework\TestCase
     private function createMockResponse($code)
     {
         $response = m::mock(ResponseInterface::class);
-        $response->shouldReceive('getStatusCode')->andReturn($code);
-        $response->shouldReceive('getBody')->andReturn(Stream::factory('test data'));
+        $response->allows('getStatusCode')->andReturns($code);
+        $response->allows('getBody')->andReturns(\GuzzleHttp\Psr7\Utils::streamFor('test data'));
         
         return $response;
     }
@@ -83,7 +84,7 @@ class LoggerTest extends \PHPUnit\Framework\TestCase
 
         $middleware = new Logger($logger);
         $response = $this->createMockResponse(200);
-        $response->shouldReceive('getHeaderLine')->andReturn("length");
+        $response->allows('getHeaderLine')->andReturns("length");
 
         $client = $this->createClient($middleware, [$response]);
         $client->get("/", [
@@ -103,7 +104,7 @@ class LoggerTest extends \PHPUnit\Framework\TestCase
         $middleware->setRequestLoggingEnabled(true);
 
         $response = $this->createMockResponse(200);
-        $response->shouldReceive('getHeaderLine')->andReturn("length");
+        $response->allows('getHeaderLine')->andReturns("length");
 
         $client = $this->createClient($middleware, [$response]);
         $client->get("/", [
@@ -123,7 +124,7 @@ class LoggerTest extends \PHPUnit\Framework\TestCase
         });
 
         $response = $this->createMockResponse(200);
-        $response->shouldReceive('getHeaderLine')->andReturn("length");
+        $response->allows('getHeaderLine')->andReturns("length");
 
         $client = $this->createClient($middleware, [$response]);
         $client->get("/", [
@@ -142,7 +143,7 @@ class LoggerTest extends \PHPUnit\Framework\TestCase
         });
 
         $response = $this->createMockResponse(200);
-        $response->shouldReceive('getHeaderLine')->andReturn("length");
+        $response->allows('getHeaderLine')->andReturns("length");
 
         $client = $this->createClient($middleware, [$response]);
         $client->get("/", [
@@ -186,7 +187,7 @@ class LoggerTest extends \PHPUnit\Framework\TestCase
         }
 
         $response = $this->createMockResponse($code);
-        $response->shouldReceive('getHeaderLine')->andReturn("length");
+        $response->allows('getHeaderLine')->andReturns("length");
 
         $client = $this->createClient($middleware, [$response]);
         $client->get("/", [
