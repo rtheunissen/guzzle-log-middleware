@@ -53,7 +53,7 @@ class LoggerTest extends \PHPUnit\Framework\TestCase
     {
         $logger->shouldReceive('log')->times($count)->with(
             $level,
-            $message ?: "~^.+ ua - \[.+\] \"GET / HTTP/1\.1\" $code .+$~",
+            $message ?: m::pattern("~^.+ ua - \[.+\] \"GET / HTTP/1\.1\" $code .+$~"),
             m::type('array')
         );
     }
