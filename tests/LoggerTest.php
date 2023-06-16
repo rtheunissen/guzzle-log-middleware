@@ -15,9 +15,9 @@ use GuzzleHttp\Stream\Stream;
 
 use \Mockery as m;
 
-class LoggerTest extends \PHPUnit_Framework_TestCase
+class LoggerTest extends \PHPUnit\Framework\TestCase
 {
-    public function tearDown()
+    public function tearDown(): void
     {
         m::close();
     }
@@ -48,7 +48,7 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
         return $response;
     }
 
-    private function logBehaviour($logger, $count, $level, $code, $message = "")
+    private function logBehaviour($logger, $count, $level, $code, $message = ""): void
     {
         $logger->shouldReceive('log')->times($count)->with(
             $level,
@@ -58,23 +58,25 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException InvalidArgumentException
      */
-    public function testInvalidFormatter()
+    public function testInvalidFormatter(): void
     {
+        $this->expectException(\InvalidArgumentException::class);
+
         $logger = new Logger(m::mock(LoggerInterface::class));
         $logger->setFormatter(false);
     }
 
     /**
-     * @expectedException InvalidArgumentException
      */
-    public function testInvalidLogger()
+    public function testInvalidLogger(): void
     {
+        $this->expectException(\InvalidArgumentException::class);
+
         $logger = new Logger(false);
     }
 
-    public function testLogDefaults()
+    public function testLogDefaults(): void
     {
         $logger = m::mock(LoggerInterface::class);
         $this->logBehaviour($logger, 1, LogLevel::INFO, 200);
@@ -91,7 +93,7 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
         ]);
     }
 
-    public function testRequestLogging()
+    public function testRequestLogging(): void
     {
         $logger = m::mock(LoggerInterface::class);
         $this->logBehaviour($logger, 1, LogLevel::INFO, "NULL");
@@ -111,7 +113,7 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
         ]);
     }
 
-    public function testClosureFormatter()
+    public function testClosureFormatter(): void
     {
         $logger = m::mock(LoggerInterface::class);
         $this->logBehaviour($logger, 1, LogLevel::INFO, 200, "custom");
@@ -131,12 +133,12 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
         ]);
     }
 
-    public function testClosureLogger()
+    public function testClosureLogger(): void
     {
         $middleware = new Logger(function ($level, $message, $context) {
             $this->assertEquals($level, LogLevel::INFO);
-            $this->assertInternalType('string', $message);
-            $this->assertInternalType('array', $context);
+            $this->assertIsString($message);
+            $this->assertIsArray($context);
         });
 
         $response = $this->createMockResponse(200);
@@ -171,7 +173,7 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
     /**
      * @dataProvider logLevelProvider
      */
-    public function testLogLevel($code, $level, $expected)
+    public function testLogLevel($code, $level, $expected): void
     {
         $logger = m::mock(LoggerInterface::class);
         $this->logBehaviour($logger, 1, $expected, $code);
@@ -194,10 +196,11 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException GuzzleHttp\Exception\RequestException
      */
-    public function testFailureLog()
+    public function testFailureLog(): void
     {
+        $this->expectException(\GuzzleHttp\Exception\RequestException::class);
+
         $logger = m::mock(LoggerInterface::class);
         $this->logBehaviour($logger, 1, LogLevel::INFO, "NULL");
 
@@ -223,10 +226,11 @@ class LoggerTest extends \PHPUnit_Framework_TestCase
     }
 
     /**
-     * @expectedException GuzzleHttp\Exception\RequestException
      */
-    public function testFailureDoesNotLogTwice()
+    public function testFailureDoesNotLogTwice(): void
     {
+        $this->expectException(\GuzzleHttp\Exception\RequestException::class);
+
         $logger = m::mock(LoggerInterface::class);
         $this->logBehaviour($logger, 1, LogLevel::INFO, "NULL");
 
