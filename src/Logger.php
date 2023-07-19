@@ -145,7 +145,7 @@ class Logger
             $response->getBody()->seek(0);;
         }
 
-        if (is_callable($this->logger)) {
+        if ($this->logger instanceof \Closure) {
             return call_user_func($this->logger, $level, $message, $context);
         }
 
@@ -190,7 +190,7 @@ class Logger
             return $this->getDefaultLogLevel($response);
         }
 
-        if (is_callable($this->logLevel)) {
+        if ($this->logLevel instanceof \Closure) {
             return call_user_func($this->logLevel, $response);
         }
 
