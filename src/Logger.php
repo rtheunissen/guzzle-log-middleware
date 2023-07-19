@@ -243,7 +243,7 @@ class Logger
                 $this->log($request, null, $reason);
             }
 
-            return Promise\rejection_for($reason);
+            return Promise\Create::rejectionFor($reason);
         };
     }
 
