@@ -13,18 +13,12 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LogLevel;
 use Psr\Log\LoggerInterface;
-
 use \Mockery as m;
 
 class LoggerTest extends TestCase
 {
 
-    public function tearDown(): void
-    {
-        parent::tearDown();
-
-        m::close();
-    }
+    use \Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 
     private function createClient($middleware, array $responses = [])
     {
@@ -56,7 +50,7 @@ class LoggerTest extends TestCase
     {
         $logger->shouldReceive('log')->times($count)->with(
             $level,
-            $message ?: "~^.+ ua - \[.+\] \"GET / HTTP/1\.1\" $code .+$~",
+            $message ?: m::pattern("~^.+ ua - \[.+\] \"GET / HTTP/1\.1\" $code .+$~"),
             m::type('array')
         );
     }
@@ -193,11 +187,10 @@ class LoggerTest extends TestCase
         ]);
     }
 
-    /**
-     * @expectedException GuzzleHttp\Exception\RequestException
-     */
     public function testFailureLog()
     {
+        $this->expectException(\GuzzleHttp\Exception\RequestException::class);
+
         $logger = m::mock(LoggerInterface::class);
         $this->logBehaviour($logger, 1, LogLevel::INFO, "NULL");
 
@@ -222,11 +215,10 @@ class LoggerTest extends TestCase
         $client->get("/", ['headers' => [ 'user-agent' => 'ua']]);
     }
 
-    /**
-     * @expectedException GuzzleHttp\Exception\RequestException
-     */
     public function testFailureDoesNotLogTwice()
     {
+        $this->expectException(\GuzzleHttp\Exception\RequestException::class);
+        
         $logger = m::mock(LoggerInterface::class);
         $this->logBehaviour($logger, 1, LogLevel::INFO, "NULL");
 
